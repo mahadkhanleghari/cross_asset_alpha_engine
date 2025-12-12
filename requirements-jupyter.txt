@@ -1,0 +1,13 @@
+# Jupyter notebook dependencies
+jupyter>=1.0.0
+jupyterlab>=3.0.0
+ipykernel>=6.0.0
+nbformat>=5.0.0
+nbconvert>=6.0.0
+
+# Notebook extensions and tools
+ipywidgets>=7.6.0
+jupyter-contrib-nbextensions>=0.5.1
+
+# Additional visualization for notebooks
+seaborn>=0.11.0

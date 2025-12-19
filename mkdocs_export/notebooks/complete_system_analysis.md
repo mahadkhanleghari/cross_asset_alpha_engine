@@ -85,7 +85,7 @@ print("All required libraries imported successfully")
 ```
 
     System initialization complete
-    Analysis date: 2025-12-18 20:37:25
+    Analysis date: 2025-12-18 21:04:18
     Working directory: /Users/mahadafzal/Projects/cross_asset_alpha_engine/notebooks
     All required libraries imported successfully
 
@@ -617,7 +617,7 @@ print(f"\nData quality analysis complete. Visualization saved to {results_dir / 
 
 
     
-![png](complete_system_analysis_files/Complete_System_Analysis_latest_5_1.png)
+![png](complete_system_analysis_files/complete_system_analysis_5_1.png)
     
 
 
@@ -1099,12 +1099,12 @@ print("System implementation complete")
     Alpha prediction generation complete
     
     Implementing portfolio construction and backtesting...
-    2025-12-18 20:37:32,253 - BacktestEngine - INFO - Initialized BacktestEngine with transaction costs: 5.0 bps per side
+    2025-12-18 21:04:25,620 - BacktestEngine - INFO - Initialized BacktestEngine with transaction costs: 5.0 bps per side
     Running backtest with transaction costs and turnover tracking...
-    2025-12-18 20:37:32,254 - BacktestEngine - INFO - Starting backtest execution
-    2025-12-18 20:37:32,569 - BacktestEngine - INFO - Backtest execution completed
-    2025-12-18 20:37:32,570 - BacktestEngine - INFO - Net Sharpe Ratio: 0.529
-    2025-12-18 20:37:32,570 - BacktestEngine - INFO - Average Daily Turnover: 0.304
+    2025-12-18 21:04:25,621 - BacktestEngine - INFO - Starting backtest execution
+    2025-12-18 21:04:25,913 - BacktestEngine - INFO - Backtest execution completed
+    2025-12-18 21:04:25,913 - BacktestEngine - INFO - Net Sharpe Ratio: 0.529
+    2025-12-18 21:04:25,914 - BacktestEngine - INFO - Average Daily Turnover: 0.304
     
     ============================================================
     CROSS-ASSET ALPHA ENGINE - BACKTEST RESULTS
@@ -1148,6 +1148,478 @@ print("System implementation complete")
     
     Results saved to /Users/mahadafzal/Projects/cross_asset_alpha_engine/results
     System implementation complete
+
+
+## Statistical Significance Testing
+
+This section performs comprehensive statistical tests to validate the significance of the strategy's performance, including:
+
+1. **Sharpe Ratio Significance**: t-test to determine if Sharpe ratio is significantly different from zero
+2. **Bootstrap Confidence Intervals**: Non-parametric confidence intervals for key metrics
+3. **Alpha Persistence Tests**: Tests for consistent alpha generation over time
+4. **Regime-Specific Performance**: Statistical tests for performance across different market regimes
+5. **Information Ratio Significance**: Tests for excess return vs benchmark significance
+
+
+
+```python
+# Statistical Significance Testing for Publication
+print("=" * 70)
+print("STATISTICAL SIGNIFICANCE TESTING")
+print("=" * 70)
+
+from scipy import stats
+from scipy.stats import jarque_bera, normaltest
+import warnings
+warnings.filterwarnings('ignore')
+
+# Extract returns for testing
+portfolio_returns = portfolio_performance['portfolio_return_net'].dropna()
+
+# Try to get benchmark returns from various possible column names
+benchmark_returns = None
+if 'benchmark_return' in portfolio_performance.columns:
+    benchmark_returns = portfolio_performance['benchmark_return'].dropna()
+elif 'cumulative_benchmark' in portfolio_performance.columns:
+    # Calculate daily returns from cumulative benchmark
+    cumulative_benchmark = portfolio_performance['cumulative_benchmark'].dropna()
+    benchmark_returns = cumulative_benchmark.pct_change().dropna()
+elif 'benchmark_total_return' in metrics:
+    # Create synthetic benchmark returns (equal daily return)
+    n_days = len(portfolio_returns)
+    benchmark_total = metrics.get('benchmark_total_return', 0)
+    benchmark_daily = (1 + benchmark_total) ** (1/n_days) - 1
+    benchmark_returns = pd.Series([benchmark_daily] * n_days, index=portfolio_returns.index)
+
+# Align returns if benchmark exists
+if benchmark_returns is not None and len(benchmark_returns) > 0:
+    common_index = portfolio_returns.index.intersection(benchmark_returns.index)
+    if len(common_index) > 0:
+        portfolio_returns = portfolio_returns.loc[common_index]
+        benchmark_returns = benchmark_returns.loc[common_index]
+        excess_returns = portfolio_returns - benchmark_returns
+    else:
+        excess_returns = None
+else:
+    excess_returns = None
+
+statistical_tests = {}
+
+# ============================================================================
+# 1. SHARPE RATIO SIGNIFICANCE TEST
+# ============================================================================
+print("\n1. SHARPE RATIO SIGNIFICANCE TEST")
+print("-" * 70)
+
+risk_free_rate = 0.02 / 252  # Daily risk-free rate
+excess_portfolio = portfolio_returns - risk_free_rate
+sharpe_ratio = metrics.get('sharpe_ratio', 0)
+n_obs = len(portfolio_returns)
+
+# t-test for Sharpe ratio: H0: SR = 0, H1: SR != 0
+# Test statistic: t = SR * sqrt(n)
+t_statistic_sharpe = sharpe_ratio * np.sqrt(n_obs)
+p_value_sharpe = 2 * (1 - stats.t.cdf(abs(t_statistic_sharpe), n_obs - 1))
+
+statistical_tests['sharpe_ratio_test'] = {
+    'sharpe_ratio': float(sharpe_ratio),
+    'n_observations': int(n_obs),
+    't_statistic': float(t_statistic_sharpe),
+    'p_value': float(p_value_sharpe),
+    'significant_at_5pct': p_value_sharpe < 0.05,
+    'significant_at_1pct': p_value_sharpe < 0.01,
+    'interpretation': 'Sharpe ratio significantly different from zero' if p_value_sharpe < 0.05 else 'Sharpe ratio not significantly different from zero'
+}
+
+print(f"Sharpe Ratio: {sharpe_ratio:.4f}")
+print(f"Number of Observations: {n_obs}")
+print(f"t-statistic: {t_statistic_sharpe:.4f}")
+print(f"p-value: {p_value_sharpe:.6f}")
+print(f"Significant at 5% level: {'Yes' if p_value_sharpe < 0.05 else 'No'}")
+print(f"Significant at 1% level: {'Yes' if p_value_sharpe < 0.01 else 'No'}")
+
+# ============================================================================
+# 2. BOOTSTRAP CONFIDENCE INTERVALS
+# ============================================================================
+print("\n2. BOOTSTRAP CONFIDENCE INTERVALS")
+print("-" * 70)
+
+def bootstrap_metric(returns, metric_func, n_bootstrap=1000, confidence=0.95):
+    """Bootstrap confidence interval for a metric."""
+    bootstrap_samples = []
+    for _ in range(n_bootstrap):
+        sample = returns.sample(n=len(returns), replace=True)
+        bootstrap_samples.append(metric_func(sample))
+    
+    alpha = 1 - confidence
+    lower = np.percentile(bootstrap_samples, 100 * alpha / 2)
+    upper = np.percentile(bootstrap_samples, 100 * (1 - alpha / 2))
+    return {
+        'mean': float(np.mean(bootstrap_samples)),
+        'std': float(np.std(bootstrap_samples)),
+        'lower_ci': float(lower),
+        'upper_ci': float(upper),
+        'confidence_level': confidence
+    }
+
+# Bootstrap Sharpe ratio
+def calc_sharpe(returns):
+    excess = returns - risk_free_rate
+    if returns.std() == 0:
+        return 0
+    return excess.mean() / returns.std() * np.sqrt(252)
+
+bootstrap_sharpe = bootstrap_metric(portfolio_returns, calc_sharpe, n_bootstrap=1000)
+statistical_tests['bootstrap_sharpe'] = bootstrap_sharpe
+
+print(f"Bootstrap Sharpe Ratio:")
+print(f"  Mean: {bootstrap_sharpe['mean']:.4f}")
+print(f"  95% CI: [{bootstrap_sharpe['lower_ci']:.4f}, {bootstrap_sharpe['upper_ci']:.4f}]")
+
+# Bootstrap annualized return
+def calc_annual_return(returns):
+    return (1 + returns.mean()) ** 252 - 1
+
+bootstrap_annual_return = bootstrap_metric(portfolio_returns, calc_annual_return, n_bootstrap=1000)
+statistical_tests['bootstrap_annual_return'] = bootstrap_annual_return
+
+print(f"\nBootstrap Annualized Return:")
+print(f"  Mean: {bootstrap_annual_return['mean']:.4%}")
+print(f"  95% CI: [{bootstrap_annual_return['lower_ci']:.4%}, {bootstrap_annual_return['upper_ci']:.4%}]")
+
+# ============================================================================
+# 3. ALPHA PERSISTENCE TEST (Regression-based)
+# ============================================================================
+print("\n3. ALPHA PERSISTENCE TEST")
+print("-" * 70)
+
+if excess_returns is not None and len(excess_returns) > 0:
+    # Test if alpha (intercept) is significantly different from zero
+    # Regression: excess_return = alpha + beta * benchmark_return + epsilon
+    from sklearn.linear_model import LinearRegression
+    
+    X = benchmark_returns.values.reshape(-1, 1)
+    y = excess_returns.values
+    
+    reg = LinearRegression().fit(X, y)
+    alpha_estimate = reg.intercept_
+    beta_estimate = reg.coef_[0]
+    
+    # Calculate standard errors
+    y_pred = reg.predict(X)
+    residuals = y - y_pred
+    n = len(y)
+    mse = np.sum(residuals**2) / (n - 2)
+    
+    # Standard error of alpha
+    x_mean = np.mean(X)
+    x_var = np.var(X, ddof=1)
+    se_alpha = np.sqrt(mse * (1/n + x_mean**2 / (x_var * (n-1))))
+    
+    # t-test for alpha
+    t_alpha = alpha_estimate / se_alpha
+    p_alpha = 2 * (1 - stats.t.cdf(abs(t_alpha), n - 2))
+    
+    # Annualized alpha
+    alpha_annualized = alpha_estimate * 252
+    
+    statistical_tests['alpha_persistence'] = {
+        'alpha_daily': float(alpha_estimate),
+        'alpha_annualized': float(alpha_annualized),
+        'beta': float(beta_estimate),
+        't_statistic': float(t_alpha),
+        'p_value': float(p_alpha),
+        'standard_error': float(se_alpha),
+        'significant_at_5pct': p_alpha < 0.05,
+        'significant_at_1pct': p_alpha < 0.01,
+        'interpretation': 'Alpha is significantly different from zero' if p_alpha < 0.05 else 'Alpha is not significantly different from zero'
+    }
+    
+    print(f"Alpha (daily): {alpha_estimate:.6f}")
+    print(f"Alpha (annualized): {alpha_annualized:.4%}")
+    print(f"Beta: {beta_estimate:.4f}")
+    print(f"t-statistic: {t_alpha:.4f}")
+    print(f"p-value: {p_alpha:.6f}")
+    print(f"Significant at 5% level: {'Yes' if p_alpha < 0.05 else 'No'}")
+else:
+    print("Excess returns not available for alpha persistence test")
+    statistical_tests['alpha_persistence'] = {'note': 'Excess returns not available'}
+
+# ============================================================================
+# 4. INFORMATION RATIO SIGNIFICANCE TEST
+# ============================================================================
+print("\n4. INFORMATION RATIO SIGNIFICANCE TEST")
+print("-" * 70)
+
+if excess_returns is not None and len(excess_returns) > 0:
+    info_ratio = metrics.get('information_ratio', 0)
+    excess_mean = excess_returns.mean()
+    excess_std = excess_returns.std()
+    
+    # t-test for information ratio: H0: IR = 0, H1: IR != 0
+    # Equivalent to testing if mean excess return is significantly different from zero
+    t_info = excess_mean / (excess_std / np.sqrt(len(excess_returns)))
+    p_info = 2 * (1 - stats.t.cdf(abs(t_info), len(excess_returns) - 1))
+    
+    statistical_tests['information_ratio_test'] = {
+        'information_ratio': float(info_ratio),
+        'mean_excess_return': float(excess_mean),
+        'tracking_error': float(excess_std),
+        't_statistic': float(t_info),
+        'p_value': float(p_info),
+        'significant_at_5pct': p_info < 0.05,
+        'significant_at_1pct': p_info < 0.01,
+        'interpretation': 'Information ratio significantly different from zero' if p_info < 0.05 else 'Information ratio not significantly different from zero'
+    }
+    
+    print(f"Information Ratio: {info_ratio:.4f}")
+    print(f"Mean Excess Return: {excess_mean:.6f}")
+    print(f"Tracking Error: {excess_std:.6f}")
+    print(f"t-statistic: {t_info:.4f}")
+    print(f"p-value: {p_info:.6f}")
+    print(f"Significant at 5% level: {'Yes' if p_info < 0.05 else 'No'}")
+else:
+    print("Excess returns not available for information ratio test")
+    statistical_tests['information_ratio_test'] = {'note': 'Excess returns not available'}
+
+# ============================================================================
+# 5. RETURN DISTRIBUTION TESTS
+# ============================================================================
+print("\n5. RETURN DISTRIBUTION TESTS")
+print("-" * 70)
+
+# Normality test (Jarque-Bera)
+jb_stat, jb_pvalue = jarque_bera(portfolio_returns)
+statistical_tests['normality_test'] = {
+    'jarque_bera_statistic': float(jb_stat),
+    'p_value': float(jb_pvalue),
+    'is_normal': jb_pvalue > 0.05,
+    'interpretation': 'Returns are normally distributed' if jb_pvalue > 0.05 else 'Returns are not normally distributed'
+}
+
+print(f"Jarque-Bera Test for Normality:")
+print(f"  Test Statistic: {jb_stat:.4f}")
+print(f"  p-value: {jb_pvalue:.6f}")
+print(f"  Normal Distribution: {'Yes' if jb_pvalue > 0.05 else 'No'}")
+
+# Skewness and Kurtosis
+skewness = portfolio_returns.skew()
+kurtosis = portfolio_returns.kurtosis()
+statistical_tests['distribution_moments'] = {
+    'mean': float(portfolio_returns.mean()),
+    'std': float(portfolio_returns.std()),
+    'skewness': float(skewness),
+    'kurtosis': float(kurtosis),
+    'excess_kurtosis': float(kurtosis - 3)
+}
+
+print(f"\nDistribution Moments:")
+print(f"  Mean: {portfolio_returns.mean():.6f}")
+print(f"  Std Dev: {portfolio_returns.std():.6f}")
+print(f"  Skewness: {skewness:.4f}")
+print(f"  Kurtosis: {kurtosis:.4f}")
+
+# ============================================================================
+# 6. REGIME-SPECIFIC PERFORMANCE TESTS
+# ============================================================================
+print("\n6. REGIME-SPECIFIC PERFORMANCE ANALYSIS")
+print("-" * 70)
+
+if 'market_regime' in test_data.columns:
+    regime_performance = []
+    for regime in test_data['market_regime'].unique():
+        regime_mask = test_data['market_regime'] == regime
+        regime_returns = portfolio_performance.loc[portfolio_performance.index.isin(
+            test_data[regime_mask].index
+        )]['portfolio_return_net'].dropna()
+        
+        if len(regime_returns) > 10:  # Minimum observations
+            regime_sharpe = calc_sharpe(regime_returns)
+            regime_annual_return = calc_annual_return(regime_returns)
+            regime_vol = regime_returns.std() * np.sqrt(252)
+            
+            regime_performance.append({
+                'regime': regime,
+                'n_observations': len(regime_returns),
+                'annualized_return': float(regime_annual_return),
+                'volatility': float(regime_vol),
+                'sharpe_ratio': float(regime_sharpe)
+            })
+            
+            print(f"{regime}:")
+            print(f"  Observations: {len(regime_returns)}")
+            print(f"  Annual Return: {regime_annual_return:.4%}")
+            print(f"  Volatility: {regime_vol:.4%}")
+            print(f"  Sharpe Ratio: {regime_sharpe:.4f}")
+    
+    statistical_tests['regime_performance'] = regime_performance
+else:
+    print("Regime information not available in test data")
+    statistical_tests['regime_performance'] = {'note': 'Regime data not available'}
+
+# ============================================================================
+# 7. SAVE STATISTICAL TEST RESULTS
+# ============================================================================
+print("\n7. SAVING STATISTICAL TEST RESULTS")
+print("-" * 70)
+
+def convert_to_json_serializable(obj):
+    """Convert NumPy types and other non-serializable types to JSON-compatible types."""
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_to_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_to_json_serializable(item) for item in obj]
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
+
+# Add metadata
+statistical_tests['metadata'] = {
+    'test_date': datetime.now().isoformat(),
+    'n_observations': int(n_obs),
+    'test_period_start': str(portfolio_returns.index.min()),
+    'test_period_end': str(portfolio_returns.index.max()),
+    'risk_free_rate': 0.02
+}
+
+# Convert all NumPy types to native Python types for JSON serialization
+statistical_tests_serializable = convert_to_json_serializable(statistical_tests)
+
+# Save to JSON
+statistical_tests_file = results_dir / 'statistical_tests_results.json'
+with open(statistical_tests_file, 'w') as f:
+    json.dump(statistical_tests_serializable, f, indent=2)
+
+print(f"Statistical test results saved to: {statistical_tests_file}")
+
+# Create summary table for CSV export
+test_summary = []
+test_summary.append(['Test', 'Metric', 'Value', 't-statistic', 'p-value', 'Significant (5%)', 'Significant (1%)'])
+
+# Sharpe ratio test
+sr_test = statistical_tests['sharpe_ratio_test']
+test_summary.append([
+    'Sharpe Ratio',
+    'Sharpe Ratio',
+    f"{sr_test['sharpe_ratio']:.4f}",
+    f"{sr_test['t_statistic']:.4f}",
+    f"{sr_test['p_value']:.6f}",
+    'Yes' if sr_test['significant_at_5pct'] else 'No',
+    'Yes' if sr_test['significant_at_1pct'] else 'No'
+])
+
+# Alpha persistence
+if 'alpha_persistence' in statistical_tests and 'alpha_annualized' in statistical_tests['alpha_persistence']:
+    alpha_test = statistical_tests['alpha_persistence']
+    test_summary.append([
+        'Alpha Persistence',
+        'Alpha (annualized)',
+        f"{alpha_test['alpha_annualized']:.4%}",
+        f"{alpha_test['t_statistic']:.4f}",
+        f"{alpha_test['p_value']:.6f}",
+        'Yes' if alpha_test['significant_at_5pct'] else 'No',
+        'Yes' if alpha_test['significant_at_1pct'] else 'No'
+    ])
+
+# Information ratio
+if 'information_ratio_test' in statistical_tests and 't_statistic' in statistical_tests['information_ratio_test']:
+    ir_test = statistical_tests['information_ratio_test']
+    test_summary.append([
+        'Information Ratio',
+        'Information Ratio',
+        f"{ir_test['information_ratio']:.4f}",
+        f"{ir_test['t_statistic']:.4f}",
+        f"{ir_test['p_value']:.6f}",
+        'Yes' if ir_test['significant_at_5pct'] else 'No',
+        'Yes' if ir_test['significant_at_1pct'] else 'No'
+    ])
+
+# Save to CSV
+test_summary_df = pd.DataFrame(test_summary[1:], columns=test_summary[0])
+test_summary_df.to_csv(results_dir / 'statistical_tests_summary.csv', index=False)
+print(f"Statistical test summary saved to: {results_dir / 'statistical_tests_summary.csv'}")
+
+print("\n" + "=" * 70)
+print("STATISTICAL TESTING COMPLETE")
+print("=" * 70)
+
+```
+
+    ======================================================================
+    STATISTICAL SIGNIFICANCE TESTING
+    ======================================================================
+    
+    1. SHARPE RATIO SIGNIFICANCE TEST
+    ----------------------------------------------------------------------
+    Sharpe Ratio: 0.5293
+    Number of Observations: 128
+    t-statistic: 5.9886
+    p-value: 0.000000
+    Significant at 5% level: Yes
+    Significant at 1% level: Yes
+    
+    2. BOOTSTRAP CONFIDENCE INTERVALS
+    ----------------------------------------------------------------------
+    Bootstrap Sharpe Ratio:
+      Mean: 0.5261
+      95% CI: [-2.1406, 3.3470]
+    
+    Bootstrap Annualized Return:
+      Mean: 4.4288%
+      95% CI: [-6.7327%, 16.7781%]
+    
+    3. ALPHA PERSISTENCE TEST
+    ----------------------------------------------------------------------
+    Alpha (daily): 0.000166
+    Alpha (annualized): 4.1940%
+    Beta: -1.0027
+    t-statistic: 0.7132
+    p-value: 0.477031
+    Significant at 5% level: No
+    
+    4. INFORMATION RATIO SIGNIFICANCE TEST
+    ----------------------------------------------------------------------
+    Information Ratio: -2.6149
+    Mean Excess Return: -0.001793
+    Tracking Error: 0.011060
+    t-statistic: -1.8342
+    p-value: 0.068965
+    Significant at 5% level: No
+    
+    5. RETURN DISTRIBUTION TESTS
+    ----------------------------------------------------------------------
+    Jarque-Bera Test for Normality:
+      Test Statistic: 1.7565
+      p-value: 0.415513
+      Normal Distribution: Yes
+    
+    Distribution Moments:
+      Mean: 0.000161
+      Std Dev: 0.002587
+      Skewness: 0.2715
+      Kurtosis: 0.2600
+    
+    6. REGIME-SPECIFIC PERFORMANCE ANALYSIS
+    ----------------------------------------------------------------------
+    Regime information not available in test data
+    
+    7. SAVING STATISTICAL TEST RESULTS
+    ----------------------------------------------------------------------
+    Statistical test results saved to: /Users/mahadafzal/Projects/cross_asset_alpha_engine/results/statistical_tests_results.json
+    Statistical test summary saved to: /Users/mahadafzal/Projects/cross_asset_alpha_engine/results/statistical_tests_summary.csv
+    
+    ======================================================================
+    STATISTICAL TESTING COMPLETE
+    ======================================================================
 
 
 ## Results Visualization and Export
@@ -1269,6 +1741,16 @@ except Exception as e:
 print(f"\nSaving final results summary...")
 
 # Create comprehensive results dictionary
+# Load statistical tests if available
+statistical_tests_data = {}
+try:
+    statistical_tests_file = results_dir / 'statistical_tests_results.json'
+    if statistical_tests_file.exists():
+        with open(statistical_tests_file, 'r') as f:
+            statistical_tests_data = json.load(f)
+except Exception as e:
+    print(f"Note: Statistical tests not yet computed: {e}")
+
 final_results = {
     'analysis_metadata': {
         'analysis_date': datetime.now().isoformat(),
@@ -1276,6 +1758,7 @@ final_results = {
         'system_name': 'Cross-Asset Alpha Engine'
     },
     'performance_summary': metrics.copy(),  # Use all metrics from backtest
+    'statistical_tests': statistical_tests_data,  # Include statistical test results
     'system_configuration': {
         'n_features': len(feature_cols),
         'n_models': len(alpha_models),
@@ -1322,7 +1805,7 @@ print(f"\nThe Cross-Asset Alpha Engine analysis is now complete.")
 
 
     
-![png](complete_system_analysis_files/Complete_System_Analysis_latest_11_1.png)
+![png](complete_system_analysis_files/complete_system_analysis_13_1.png)
     
 
 

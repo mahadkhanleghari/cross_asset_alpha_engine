@@ -1,0 +1,69 @@
+{
+  "sharpe_ratio_test": {
+    "sharpe_ratio": 0.5293256308295644,
+    "n_observations": 128,
+    "t_statistic": 5.988635888246913,
+    "p_value": 2.0288181357130952e-08,
+    "significant_at_5pct": true,
+    "significant_at_1pct": true,
+    "interpretation": "Sharpe ratio significantly different from zero"
+  },
+  "bootstrap_sharpe": {
+    "mean": 0.5260879445428998,
+    "std": 1.4093348532442977,
+    "lower_ci": -2.140597266693392,
+    "upper_ci": 3.346951176284255,
+    "confidence_level": 0.95
+  },
+  "bootstrap_annual_return": {
+    "mean": 0.04428798011134657,
+    "std": 0.059875068866710394,
+    "lower_ci": -0.06732668175077641,
+    "upper_ci": 0.16778139281895008,
+    "confidence_level": 0.95
+  },
+  "alpha_persistence": {
+    "alpha_daily": 0.000166430060150137,
+    "alpha_annualized": 0.041940375157834525,
+    "beta": -1.00269474424173,
+    "t_statistic": 0.7132165439909784,
+    "p_value": 0.47703064596369416,
+    "standard_error": 0.00023335137350970114,
+    "significant_at_5pct": false,
+    "significant_at_1pct": false,
+    "interpretation": "Alpha is not significantly different from zero"
+  },
+  "information_ratio_test": {
+    "information_ratio": -2.614932222267005,
+    "mean_excess_return": -0.0017930556607073144,
+    "tracking_error": 0.011059908949509388,
+    "t_statistic": -1.8342021765556182,
+    "p_value": 0.0689647652737384,
+    "significant_at_5pct": false,
+    "significant_at_1pct": false,
+    "interpretation": "Information ratio not significantly different from zero"
+  },
+  "normality_test": {
+    "jarque_bera_statistic": 1.7564832550179514,
+    "p_value": 0.41551289614744613,
+    "is_normal": true,
+    "interpretation": "Returns are normally distributed"
+  },
+  "distribution_moments": {
+    "mean": 0.00016116393813906977,
+    "std": 0.00258688741958262,
+    "skewness": 0.2714969575666425,
+    "kurtosis": 0.26000399044737366,
+    "excess_kurtosis": -2.7399960095526263
+  },
+  "regime_performance": {
+    "note": "Regime data not available"
+  },
+  "metadata": {
+    "test_date": "2025-12-18T21:04:26.257859",
+    "n_observations": 128,
+    "test_period_start": "2025-05-29 04:00:00",
+    "test_period_end": "2025-11-28 05:00:00",
+    "risk_free_rate": 0.02
+  }
+}

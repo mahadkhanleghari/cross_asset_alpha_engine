@@ -36,7 +36,7 @@ def test_data_layer_imports():
     """Test that data layer components can be imported."""
     try:
         from cross_asset_alpha_engine.data import PolygonClient, DataCache, AssetUniverse
-        from cross_asset_alpha_engine.data import load_daily_bars, load_intraday_bars
+        from cross_asset_alpha_engine.data import load_daily_bars
         
         # Test that classes can be instantiated (without API key for PolygonClient)
         cache = DataCache()

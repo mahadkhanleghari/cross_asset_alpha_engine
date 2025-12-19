@@ -1,7 +1,12 @@
-"""Intraday feature engineering for high-frequency alpha generation.
+"""Daily microstructure-inspired feature engineering.
 
-This module provides feature extraction capabilities for intraday market data,
-including rolling returns, volatility, VWAP deviations, and momentum indicators.
+IMPORTANT: This module computes features from daily OHLCV bars, not true intraday or tick data.
+All features are inspired by microstructure concepts but computed from daily bars only.
+No intraday, tick, or order-book data is used in the current experiment.
+
+This module provides feature extraction capabilities for daily market data,
+including rolling returns, volatility, VWAP deviations, and momentum indicators
+computed from daily OHLCV bars.
 """
 
 import numpy as np
@@ -34,10 +39,14 @@ class IntradayFeatureConfig:
 
 
 class IntradayFeatureEngine(LoggerMixin):
-    """Engine for generating intraday features from minute-level market data."""
+    """Engine for generating daily microstructure-inspired features from daily OHLCV bars.
+    
+    Note: Despite the name, this engine works with daily OHLCV bars, not true intraday data.
+    Features are inspired by microstructure concepts but computed from daily bars only.
+    """
     
     def __init__(self, config: Optional[IntradayFeatureConfig] = None):
-        """Initialize intraday feature engine.
+        """Initialize daily microstructure-inspired feature engine.
         
         Args:
             config: Feature configuration (uses defaults if None)
@@ -51,12 +60,15 @@ class IntradayFeatureEngine(LoggerMixin):
         price_col: str = "close",
         periods: Optional[List[int]] = None
     ) -> pd.DataFrame:
-        """Calculate rolling returns for multiple periods.
+        """Calculate rolling returns for multiple periods from daily OHLCV bars.
+        
+        Note: Despite the "m" suffix in feature names, these are daily periods, not minutes.
+        All calculations use daily OHLCV bars only.
         
         Args:
-            df: DataFrame with OHLCV data
+            df: DataFrame with daily OHLCV data
             price_col: Column name for price data
-            periods: List of periods for rolling returns
+            periods: List of periods (in days) for rolling returns
             
         Returns:
             DataFrame with rolling return features
@@ -67,10 +79,10 @@ class IntradayFeatureEngine(LoggerMixin):
         result = df.copy()
         
         for period in periods:
-            # Simple return
+            # Simple return (daily bars, period in days)
             result[f"return_{period}m"] = df[price_col].pct_change(period)
             
-            # Log return
+            # Log return (daily bars, period in days)
             result[f"log_return_{period}m"] = np.log(df[price_col] / df[price_col].shift(period))
         
         return result
@@ -81,18 +93,18 @@ class IntradayFeatureEngine(LoggerMixin):
         price_col: str = "close",
         windows: Optional[List[int]] = None
     ) -> pd.DataFrame:
-        """Calculate rolling volatility measures.
+        """Calculate rolling volatility measures from daily OHLCV bars.
         
         Args:
-            df: DataFrame with OHLCV data
+            df: DataFrame with daily OHLCV data
             price_col: Column name for price data
-            windows: List of windows for volatility calculation
+            windows: List of windows (in days) for volatility calculation
             
         Returns:
-            DataFrame with volatility features
+            DataFrame with volatility features computed from daily bars
         """
         if windows is None:
-            windows = [5, 10, 20, 60]  # 5min, 10min, 20min, 1hour
+            windows = [5, 10, 20, 60]  # 5-day, 10-day, 20-day, 60-day (daily bars)
         
         result = df.copy()
         

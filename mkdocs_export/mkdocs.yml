@@ -1,0 +1,108 @@
+site_name: Quantitative Trading Research Library
+site_description: Advanced quantitative trading research and cross-asset alpha generation
+site_author: The Data Guy
+site_url: https://mahadkhanleghari.github.io/quant_trading_notebooks/
+
+# Repository
+repo_name: mahadkhanleghari/quant_trading_notebooks
+repo_url: https://github.com/mahadkhanleghari/quant_trading_notebooks
+
+# Configuration
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.annotate
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.arithmatex:
+      generic: true
+
+# JavaScript for MathJax
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+# Navigation
+nav:
+  - Home: index.md
+  - Research:
+    - Crypto Microstructure Analysis: research/crypto_microstructure.md
+    - Cross-Asset Alpha Engine:
+      - Overview: research/cross_asset_alpha_engine/index.md
+      - Methodology: research/cross_asset_alpha_engine/methodology.md
+      - System Architecture: research/cross_asset_alpha_engine/system_architecture.md
+      - Feature Engineering: research/cross_asset_alpha_engine/feature_engineering.md
+      - Model Architecture: research/cross_asset_alpha_engine/model_architecture.md
+      - Results & Analysis: research/cross_asset_alpha_engine/results_analysis.md
+      - Notebooks:
+        - Complete System Analysis: research/cross_asset_alpha_engine/notebooks/complete_system_analysis.md
+        - Data Exploration: research/cross_asset_alpha_engine/notebooks/data_exploration.md
+        - Feature Engineering: research/cross_asset_alpha_engine/notebooks/feature_exploration.md
+        - Regime Detection: research/cross_asset_alpha_engine/notebooks/regime_detection.md
+        - Backtesting Demo: research/cross_asset_alpha_engine/notebooks/backtesting_demo.md
+        - Execution Simulation: research/cross_asset_alpha_engine/notebooks/execution_simulation.md
+      - Appendices:
+        - Terminology: research/cross_asset_alpha_engine/appendices/terminology.md
+        - Mathematical Framework: research/cross_asset_alpha_engine/appendices/mathematical_framework.md
+        - Implementation Guide: research/cross_asset_alpha_engine/appendices/implementation_guide.md
+  - Methodology:
+    - Data Sources: methodology/data_sources.md
+    - Statistical Methods: methodology/statistical_methods.md
+    - Cross-Asset Techniques: methodology/cross_asset_techniques.md
+  - Results:
+    - Performance Metrics: results/performance_metrics.md
+    - Risk Analysis: results/risk_analysis.md
+    - Cross-Asset Performance: results/cross_asset_performance.md
+
+# Plugins
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mahadkhanleghari
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/in/mahadkhanleghari
+
+# Copyright
+copyright: Copyright &copy; 2025 The Data Guy - Quantitative Research

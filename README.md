@@ -4,11 +4,13 @@ A comprehensive quantitative trading system that generates alpha through regime-
 
 ## Overview
 
+**IMPORTANT: All empirical analysis in this project is conducted at daily frequency using daily OHLCV bars from Polygon.io. No intraday, tick, or order-book data is used in the current experiment.**
+
 The Cross-Asset Alpha Engine is a sophisticated quantitative trading system that systematically exploits market inefficiencies across multiple asset classes. By combining traditional econometric methods with modern machine learning techniques, the system identifies profitable trading opportunities that arise from:
 
 1. **Cross-Asset Arbitrage**: Exploiting price discrepancies and correlation breakdowns between related instruments
 2. **Regime-Dependent Patterns**: Capitalizing on different market behaviors during various economic cycles
-3. **Microstructure Inefficiencies**: Leveraging short-term price movements and volume patterns
+3. **Daily Microstructure-Inspired Patterns**: Leveraging daily price movements and volume patterns computed from OHLCV data
 4. **Multi-Timeframe Analysis**: Integrating signals from different time horizons for robust predictions
 
 The system's core innovation lies in its ability to adapt trading strategies based on the current market regime, ensuring consistent performance across different economic environments.
@@ -23,7 +25,7 @@ The engine is built on the fundamental principle that financial markets are inte
 
 **Regime-Dependent Correlations**: Asset correlations change dramatically during different market conditions (bull markets, bear markets, crisis periods), requiring adaptive models.
 
-**Microstructure Edge**: High-frequency patterns in volume, VWAP deviations, and intraday ranges contain predictive information about future price movements.
+**Daily Microstructure-Inspired Features**: Patterns in daily volume, VWAP deviations, and daily high-low ranges (computed from daily OHLCV bars) contain predictive information about future price movements.
 
 ### 2. Multi-Asset Universe Construction
 
@@ -47,11 +49,13 @@ The engine is built on the fundamental principle that financial markets are inte
 - **Mean Reversion Indicators**: Price deviations from moving averages (SMA20, SMA50) and Bollinger Band positions
 - **Momentum Oscillators**: RSI and custom momentum indicators detecting overbought/oversold conditions
 
-#### Microstructure Features (Volume and Intraday)
-- **VWAP Analysis**: Deviations from Volume Weighted Average Price indicating institutional activity
-- **Volume Patterns**: Volume z-scores and ratios identifying unusual trading activity
-- **Intraday Dynamics**: Gap analysis, overnight returns, and intraday range patterns
-- **Market Microstructure**: Bid-ask dynamics proxied through high-low ranges and volume clustering
+#### Daily Microstructure-Inspired Features (Volume and Daily Patterns)
+**Note: All features are computed from daily OHLCV bars; no intraday or tick data is used in the current experiment.**
+
+- **VWAP Analysis**: Deviations from Volume Weighted Average Price (computed from daily bars) indicating potential institutional activity patterns
+- **Volume Patterns**: Volume z-scores and ratios identifying unusual daily trading activity
+- **Daily Price Dynamics**: Gap analysis (overnight gaps), daily returns, and daily high-low range patterns
+- **Daily Liquidity Proxies**: High-low ranges and volume clustering patterns computed from daily OHLCV data
 
 #### Cross-Asset Features (Inter-Market Analysis)
 - **Correlation Dynamics**: Rolling correlations between equity and regime indicators
@@ -212,11 +216,11 @@ Cross-Asset Alpha Engine
 │   │   ├── Volatility clustering detection
 │   │   ├── Mean reversion signals (Bollinger, RSI)
 │   │   └── Price pattern recognition
-│   ├── Microstructure Analysis Module
-│   │   ├── VWAP deviation analysis
-│   │   ├── Volume anomaly detection
-│   │   ├── Intraday range patterns
-│   │   └── Gap and overnight analysis
+│   ├── Daily Microstructure-Inspired Analysis Module
+│   │   ├── VWAP deviation analysis (from daily bars)
+│   │   ├── Volume anomaly detection (daily volume patterns)
+│   │   ├── Daily range patterns (high-low from OHLCV)
+│   │   └── Gap and overnight analysis (daily open-close patterns)
 │   └── Cross-Asset Signal Module
 │       ├── Inter-market correlation tracking
 │       ├── Volatility spillover effects
@@ -487,7 +491,9 @@ The Cross-Asset Alpha Engine generates over 40 sophisticated features designed t
 - **Z-Score Analysis**: Price deviations from historical means
 - **Reversion Strength**: Magnitude and persistence of mean-reverting moves
 
-### Microstructure Features (Volume and Intraday Patterns)
+### Daily Microstructure-Inspired Features (Volume and Daily Patterns)
+
+**All features in this section are computed from daily OHLCV bars. No intraday or tick data is used.**
 
 #### Volume Analysis
 - **Volume Z-Scores**: Standardized volume relative to historical patterns
@@ -501,11 +507,11 @@ The Cross-Asset Alpha Engine generates over 40 sophisticated features designed t
 - **Institutional Activity**: Large block trading detection through VWAP analysis
 - **Execution Quality**: Price improvement/deterioration vs VWAP
 
-#### Intraday Patterns
-- **Gap Analysis**: Overnight price gaps and their subsequent behavior
+#### Daily Price Patterns (Computed from OHLCV)
+- **Gap Analysis**: Overnight price gaps (computed from daily open vs previous close) and their subsequent behavior
 - **Range Analysis**: Daily high-low ranges relative to historical norms
-- **Intraday Returns**: Open-to-close vs close-to-open return patterns
-- **Time-of-Day Effects**: Systematic patterns in different trading sessions
+- **Daily Return Patterns**: Open-to-close returns computed from daily OHLCV bars
+- **Note**: True intraday patterns and time-of-day effects require intraday data, which is not used in the current experiment
 
 ### Cross-Asset Features (Inter-Market Relationships)
 
@@ -780,7 +786,7 @@ This project follows standard software development practices:
 **Research Contributions**:
 - **Cross-Asset Alpha**: Novel approach to multi-asset alpha generation
 - **Regime-Aware Modeling**: Advanced techniques for changing market conditions
-- **Microstructure Integration**: Combining high-frequency patterns with fundamental analysis
+- **Daily Microstructure-Inspired Features**: Combining daily price and volume patterns with fundamental analysis
 - **Risk Management Innovation**: Dynamic risk budgeting and regime-dependent controls
 
 ### Professional Trading Applications
@@ -810,7 +816,7 @@ This project follows standard software development practices:
 - **New Asset Classes**: Framework easily extended to FX, commodities, crypto
 - **Alternative Data**: Integration of sentiment, satellite, and social media data
 - **Machine Learning**: Advanced models like deep learning and reinforcement learning
-- **High Frequency**: Adaptation for intraday and high-frequency strategies
+- **Intraday and High-Frequency Data**: Future work could extend to intraday tick data and order-book microstructure for true high-frequency strategies (not used in current experiment)
 
 ### Risk Management and Compliance
 
@@ -856,6 +862,55 @@ This comprehensive framework ensures the Cross-Asset Alpha Engine can serve both
 - All trading involves risk of loss
 - Proper risk management is essential for live trading
 - Market conditions may differ from historical patterns
+
+## Project History and Recent Updates
+
+### Key Implementation Updates
+
+#### Regime Detection Methodology
+- **Current Implementation**: Uses quantile-based regime detection (`vol_vix_quantiles` method) with a 3x3 volatility/VIX grid
+- **HMM Framework**: Available as optional extension but not used in current experiment
+- **Regime Labels**: Low/Med/High Vol × Low/Med/High VIX combinations (9 total regimes)
+
+#### Backtesting Enhancements
+- **Transaction Cost Modeling**: 5 basis points per side (configurable)
+- **Daily Turnover Tracking**: Monitors position changes and rebalancing frequency
+- **Net Returns**: All performance metrics calculated after transaction costs
+- **Statistical Rigor**: Sharpe ratio and Information ratio include 95% confidence intervals
+- **Benchmark Clarity**: Universe equal-weight benchmark clearly labeled
+
+#### Data Frequency Clarification
+- **Daily OHLCV Only**: All analysis uses daily bars from Polygon.io
+- **No Intraday Data**: No tick, order-book, or intraday data used
+- **Microstructure-Inspired Features**: Daily price and volume patterns computed from OHLCV bars
+- **Execution Modeling**: Daily close-to-close with simple costs, not intraday microstructure
+
+#### Documentation Improvements
+- **Transparency**: Explicit limitations and assumptions documented
+- **Methodology Alignment**: Code and documentation accurately reflect implementation
+- **Performance Reporting**: Net returns, transaction costs, and turnover metrics included
+- **Regime Clarity**: Current vs optional methods clearly distinguished
+
+### Configuration Parameters
+
+```python
+BacktestConfig(
+    transaction_cost_bps_per_side=5.0,  # Conservative estimate
+    max_position=0.10,                  # 10% max per asset
+    max_gross_exposure=1.0,             # 100% gross exposure
+    target_net_exposure=0.0,            # Market neutral
+    risk_free_rate=0.02                 # 2% annual
+)
+```
+
+### Limitations and Assumptions
+
+- **Sample Length**: ~1,161 test observations
+- **Survivorship Bias**: Handpicked large-cap universe
+- **Frequency**: Daily only (no intraday microstructure)
+- **Time Period**: Results specific to 2023-2025 market conditions
+- **Transaction Costs**: Assumed 5 bps per side
+- **Regime Method**: Quantile-based, not HMM
 
 ## License
 

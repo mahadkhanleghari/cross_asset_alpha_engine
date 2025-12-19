@@ -1,7 +1,8 @@
-"""Regime feature engineering for market regime detection.
+"""Regime detection for market regime identification.
 
-This module provides feature extraction specifically designed for regime detection,
-including volatility measures, volume patterns, and cross-asset relationships.
+This module provides both quantile-based (current implementation) and HMM-based 
+(optional/future) regime detection methods. The current experiment uses 
+volatility/VIX quantile regimes, not HMM.
 """
 
 import numpy as np
@@ -513,3 +514,136 @@ class RegimeFeatureEngine(LoggerMixin):
         ])
         
         return features
+
+
+def assign_regimes(
+    df: pd.DataFrame,
+    method: str = "vol_vix_quantiles",
+    regime_features: Optional[List[str]] = None,
+    n_regimes: int = 3,
+    hmm_model: Optional['RegimeHMM'] = None
+) -> pd.Series:
+    """
+    Assign market regime labels per timestamp.
+    
+    The current experiment uses volatility/VIX quantile regimes (method="vol_vix_quantiles").
+    HMM-based regimes are available as an optional extension but are NOT used in the 
+    reported results.
+    
+    Args:
+        df: DataFrame with market data including volatility_20d and optionally vix_level
+        method: Regime detection method
+            - "vol_vix_quantiles": Current implementation using volatility/VIX 3x3 grid
+            - "hmm": Optional HMM-based states (requires hmm_model parameter)
+        regime_features: List of feature columns for HMM (ignored for quantile method)
+        n_regimes: Number of regimes for quantile method (default: 3)
+        hmm_model: Fitted HMM model (required if method="hmm")
+        
+    Returns:
+        Series with regime labels for each timestamp
+        
+    Regime Descriptions (for vol_vix_quantiles method):
+        - Low_Vol_Low_VIX: Low volatility, low VIX (calm markets)
+        - Low_Vol_Med_VIX: Low volatility, medium VIX (mixed signals)
+        - Low_Vol_High_VIX: Low volatility, high VIX (potential turning point)
+        - Med_Vol_Low_VIX: Medium volatility, low VIX (normal markets)
+        - Med_Vol_Med_VIX: Medium volatility, medium VIX (typical conditions)
+        - Med_Vol_High_VIX: Medium volatility, high VIX (elevated uncertainty)
+        - High_Vol_Low_VIX: High volatility, low VIX (unusual combination)
+        - High_Vol_Med_VIX: High volatility, medium VIX (stressed markets)
+        - High_Vol_High_VIX: High volatility, high VIX (crisis conditions)
+    """
+    
+    if method == "vol_vix_quantiles":
+        # Current implementation: volatility/VIX quantile-based regimes
+        # Create a copy to avoid modifying original
+        df_work = df.copy()
+        df_work['_original_index'] = df_work.index
+        
+        # Process each symbol group and add regime directly
+        for symbol, group in df_work.groupby('symbol'):
+            group_indices = group.index
+            
+            # Volatility regime (3 quantiles)
+            vol_col = 'volatility_20d'
+            if vol_col not in group.columns:
+                raise ValueError(f"Required column '{vol_col}' not found for quantile regime detection")
+                
+            vol_data = group[vol_col].fillna(group[vol_col].median())
+            vol_regime = pd.qcut(
+                vol_data, 
+                q=n_regimes, 
+                labels=['Low_Vol', 'Med_Vol', 'High_Vol'],
+                duplicates='drop'
+            )
+            
+            # VIX regime (3 quantiles) - use VIX if available, otherwise default to Med_VIX
+            if 'vix_level' in group.columns:
+                vix_data = group['vix_level'].fillna(group['vix_level'].median())
+                vix_regime = pd.qcut(
+                    vix_data,
+                    q=n_regimes,
+                    labels=['Low_VIX', 'Med_VIX', 'High_VIX'],
+                    duplicates='drop'
+                )
+            else:
+                # Default to medium VIX if VIX data not available
+                vix_regime = pd.Series('Med_VIX', index=group.index)
+            
+            # Combined regime label
+            market_regime = vol_regime.astype(str) + '_' + vix_regime.astype(str)
+            
+            # Assign back to original dataframe using loc
+            df_work.loc[group_indices, 'market_regime'] = market_regime.values
+        
+        # Return series with original index
+        return df_work['market_regime']
+        
+    elif method == "hmm":
+        # Optional HMM-based regime detection
+        # TODO: This requires proper train/test split to avoid look-ahead bias
+        # Currently not used in reported results
+        
+        if hmm_model is None:
+            raise ValueError("hmm_model parameter required for HMM regime detection")
+            
+        if regime_features is None:
+            regime_features = ['volatility_20d', 'vix_level', 'volume_zscore_20d']
+            
+        # Check if required features are available
+        missing_features = [f for f in regime_features if f not in df.columns]
+        if missing_features:
+            raise ValueError(f"Missing required features for HMM: {missing_features}")
+        
+        # Extract features for HMM
+        feature_data = df[regime_features].fillna(0)
+        
+        # Predict regimes using fitted HMM
+        try:
+            regimes = hmm_model.predict_regimes(feature_data)
+            return pd.Series(regimes, index=df.index, name='market_regime')
+        except Exception as e:
+            raise ValueError(f"HMM regime prediction failed: {e}")
+    
+    else:
+        raise ValueError(f"Unknown regime detection method: {method}")
+
+
+def get_regime_descriptions() -> Dict[str, str]:
+    """
+    Get descriptions of regime labels used in the current experiment.
+    
+    Returns:
+        Dictionary mapping regime labels to descriptions
+    """
+    return {
+        'Low_Vol_Low_VIX': 'Low volatility, low VIX - Calm, stable market conditions',
+        'Low_Vol_Med_VIX': 'Low volatility, medium VIX - Mixed signals, potential transition',
+        'Low_Vol_High_VIX': 'Low volatility, high VIX - Unusual combination, potential turning point',
+        'Med_Vol_Low_VIX': 'Medium volatility, low VIX - Normal market conditions',
+        'Med_Vol_Med_VIX': 'Medium volatility, medium VIX - Typical market environment',
+        'Med_Vol_High_VIX': 'Medium volatility, high VIX - Elevated uncertainty and stress',
+        'High_Vol_Low_VIX': 'High volatility, low VIX - Unusual market dynamics',
+        'High_Vol_Med_VIX': 'High volatility, medium VIX - Stressed market conditions',
+        'High_Vol_High_VIX': 'High volatility, high VIX - Crisis or extreme stress conditions'
+    }
